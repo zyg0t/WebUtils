@@ -1,5 +1,11 @@
 [
   {
+    "folder": "b64pgp",
+    "name": "b64pgp",
+    "icon": "fas fa-key",
+    "description": "Decode Base64 text to PGP keys and decrypt messages"
+  },
+  {
     "folder": "json",
     "name": "JSON Tool",
     "icon": "fas fa-code",
