@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JSON Tool</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      background: #0a0a0a;
+      color: #eaeaea;
+      font-family: system-ui, -apple-system, sans-serif;
+      margin: 0;
+      padding: 10px;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    h2 {
+      margin: 8px 0 12px;
+      font-size: 1.5rem;
+      text-align: center;
+    }
+    input[type="file"] {
+      width: 100%;
+      margin-bottom: 10px;
+      padding: 8px;
+    }
+    textarea {
+      width: 100%;
+      flex: 1;
+      background: #111;
+      color: #eaeaea;
+      border: 1px solid #333;
+      padding: 12px;
+      border-radius: 8px;
+      font-family: monospace;
+      font-size: 15px;
+      resize: none;
+    }
+    .buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 12px 0;
+    }
+    button {
+      flex: 1 1 140px;
+      padding: 14px;
+      background: #222;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      cursor: pointer;
+    }
+    button:hover { background: #333; }
+    button:active { background: #444; }
+  </style>
+</head>
+<body>
+  <h2>JSON Tool</h2>
+
+  <input type="file" id="fileInput" accept=".json,.txt" />
+
+  <textarea id="input" placeholder="Paste JSON or compressed string here..."></textarea>
+
+  <div class="buttons">
+    <button onclick="compress()">Compress</button>
+    <button onclick="decompress()">Decompress</button>
+    <button onclick="prettify()">Prettify</button>
+  </div>
+
+  <textarea id="output" placeholder="Result..."></textarea>
+
+  <script src="https://cdn.jsdelivr.net/npm/pako@2.1.0/dist/pako.min.js"></script>
+
+  <script>
+    document.getElementById("fileInput").addEventListener("change", e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => document.getElementById("input").value = reader.result;
+      reader.readAsText(file);
+    });
+
+    function compress() {
+      try {
+        let input = document.getElementById("input").value.trim();
+        if (!input) return alert("Input is empty.");
+
+        const minified = JSON.stringify(JSON.parse(input));
+        const compressed = pako.gzip(minified);
+        const base64 = btoa(String.fromCharCode(...compressed));
+
+        document.getElementById("output").value = base64;
+      } catch (e) {
+        alert("Invalid JSON or compression failed.");
+      }
+    }
+
+    function decompress() {
+      try {
+        let input = document.getElementById("input").value.trim();
+        if (!input) return alert("Input is empty.");
+
+        const binary = Uint8Array.from(atob(input), c => c.charCodeAt(0));
+        const decompressed = pako.ungzip(binary, { to: "string" });
+
+        document.getElementById("output").value = decompressed;
+      } catch (e) {
+        alert("Decompression failed. Make sure it's a valid compressed string.");
+      }
+    }
+
+    function prettify() {
+      try {
+        let input = document.getElementById("input").value.trim();
+        if (!input) return alert("Input is empty.");
+
+        const pretty = JSON.stringify(JSON.parse(input), null, 2);
+        document.getElementById("output").value = pretty;
+      } catch (e) {
+        alert("Invalid JSON.");
+      }
+    }
+  </script>
+</body>
+</html>
