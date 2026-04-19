@@ -8,7 +8,7 @@
   {
     "folder": "sgr",
     "name": "SGR Extractor",
-    "icon": "fas fa-flask",
+    "icon": "fas fa-bottle-water",
     "description": "Locate SGR machines in Iași with downloads for import"
   }
 ]
