@@ -1,0 +1,14 @@
+[
+  {
+    "folder": "json",
+    "name": "JSON Tool",
+    "icon": "fas fa-code",
+    "description": "Compress, decompress, prettify and validate JSON"
+  },
+  {
+    "folder": "sgr",
+    "name": "SGR Extractor",
+    "icon": "fas fa-flask",
+    "description": "Locate SGR machines in Iași with downloads for import"
+  }
+]
