@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>b64pgp Tool</title>
+<script src="https://unpkg.com/openpgp@5.11.0/dist/openpgp.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
+<style>
+* { box-sizing: border-box; }
+body {
+  background: #0a0a0a;
+  color: #eaeaea;
+  font-family: system-ui, -apple-system, sans-serif;
+  margin: 0;
+  padding: 15px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+h2 { margin: 8px 0 12px; font-size: 1.5rem; text-align: center; }
+textarea {
+  width: 100%;
+  flex: 1;
+  background: #111;
+  color: #eaeaea;
+  border: 1px solid #333;
+  padding: 12px;
+  border-radius: 8px;
+  font-family: monospace;
+  font-size: 14px;
+  resize: none;
+  min-height: 100px;
+  margin-bottom: 10px;
+}
+.buttons { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+button {
+  flex: 1 1 120px;
+  padding: 12px;
+  background: #222;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+button:hover { background: #333; }
+button:active { background: #444; }
+label { font-size: 12px; color: #888; margin-bottom: 4px; display: block; text-transform: uppercase; letter-spacing: 1px; }
+</style>
+</head>
+<body>
+  <h2>b64pgp</h2>
+
+  <label>Base64 Input</label>
+  <textarea id="b64Input" placeholder="Paste Base64 here..."></textarea>
+
+  <div class="buttons">
+    <button onclick="paste(b64Input)"><i data-feather="clipboard"></i> Paste</button>
+    <button onclick="copyDecoded()"><i data-feather="copy"></i> Copy Decoded</button>
+    <button onclick="useAsKey()"><i data-feather="key"></i> Use as Key</button>
+  </div>
+
+  <label>PGP Private Key</label>
+  <textarea id="pgpKey" placeholder="PGP Private Key (Armored)"></textarea>
+
+  <label>Encrypted Message</label>
+  <textarea id="pgpInput" placeholder="Paste PGP Encrypted Message..."></textarea>
+
+  <div class="buttons">
+    <button onclick="paste(pgpInput)"><i data-feather="clipboard"></i> Paste Message</button>
+  </div>
+
+  <label>Decrypted Output</label>
+  <textarea id="pgpOutput" placeholder="Result..." readonly></textarea>
+
+  <script>
+    const b64Input = document.getElementById("b64Input");
+    const pgpKey = document.getElementById("pgpKey");
+    const pgpInput = document.getElementById("pgpInput");
+    const pgpOutput = document.getElementById("pgpOutput");
+
+    async function paste(el) {
+      el.value = await navigator.clipboard.readText();
+      if(el === b64Input) decodeBase64();
+      if(el === pgpInput) decryptPGP();
+    }
+
+    function decodeBase64() {
+      try { b64Input.dataset.decoded = atob(b64Input.value.trim()); }
+      catch { b64Input.dataset.decoded = ""; }
+    }
+
+    async function copyDecoded() {
+      decodeBase64();
+      if(b64Input.dataset.decoded) await navigator.clipboard.writeText(b64Input.dataset.decoded);
+    }
+
+    function useAsKey() {
+      decodeBase64();
+      pgpKey.value = b64Input.dataset.decoded || "";
+      decryptPGP();
+    }
+
+    b64Input.addEventListener("input", decodeBase64);
+    pgpKey.addEventListener("input", decryptPGP);
+    pgpInput.addEventListener("input", decryptPGP);
+
+    async function decryptPGP() {
+      if(!pgpKey.value.trim() || !pgpInput.value.trim()){ pgpOutput.value = ""; return; }
+      try {
+        const key = await openpgp.readPrivateKey({ armoredKey: pgpKey.value.trim() });
+        const msg = await openpgp.readMessage({ armoredMessage: pgpInput.value.trim() });
+        const { data } = await openpgp.decrypt({ message: msg, decryptionKeys: key });
+        pgpOutput.value = data;
+      } catch { pgpOutput.value = ""; }
+    }
+
+    window.onload = () => {
+      document.querySelectorAll("textarea").forEach(t => t.value = "");
+      feather.replace();
+    }
+  </script>
+</body>
+</html>
