@@ -18,9 +18,15 @@
     "description": "Compress, decompress, prettify and validate JSON"
   },
   {
+    "folder": "mcqr",
+    "name": "McQR",
+    "icon": "fas fa-qrcode",
+    "description": "Track MCDonald's receipt feedback codes"
+  },
+  {
     "folder": "sgr",
     "name": "SGR Extractor",
     "icon": "fas fa-bottle-water",
-    "description": "Locate SGR machines in Iași with downloads for import"
+    "description": "Locate SGR machines in Iași"
   }
 ]
