@@ -8,75 +8,42 @@
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      background: #0a0a0a; color: #eaeaea;
-      font-family: system-ui, -apple-system, sans-serif;
-      padding: 20px; min-height: 100vh;
-      display: flex; flex-direction: column; align-items: center;
-    }
-    header {
-      width: 100%;
-      max-width: 600px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin: 8px 0 15px;
-    }
-    h2 { font-size: 1.5rem; font-weight: 700; text-align: center; flex: 1; }
+    body, header, main, .card, .input-row, .entry-header { display: flex; flex-direction: column; }
+    body { background: #0a0a0a; color: #eaeaea; font-family: system-ui, sans-serif; padding: 20px; align-items: center; min-height: 100vh; }
+    header, main { width: 100%; max-width: 600px; }
+    header { flex-direction: row; justify-content: space-between; align-items: center; margin: 8px 0 15px; }
+    h2 { font-size: 1.5rem; font-weight: 700; text-align: center; flex: 1; margin-right: 40px; }
+    main { gap: 20px; }
 
-    .header-btn {
-      background: none; border: none; color: #aaa; cursor: pointer;
-      padding: 8px; font-size: 1.3rem; transition: color 0.2s; text-decoration: none;
-    }
-    .header-btn:hover { color: #fff; }
+    .header-btn { color: #aaa; padding: 8px; font-size: 1.3rem; text-decoration: none; transition: color 0.2s; }
+    .header-btn:hover, .icon-btn:hover { color: #fff; }
 
-    main { width: 100%; max-width: 600px; display: flex; flex-direction: column; gap: 20px; }
-    .card {
-      background: #111; border: 1px solid #333; border-radius: 8px;
-      padding: 20px; display: flex; flex-direction: column; gap: 14px;
-      transition: border-color 0.2s, background 0.2s;
-    }
+    .card { background: #111; border: 1px solid #333; border-radius: 8px; padding: 20px; gap: 14px; transition: all 0.2s; }
     .card:hover { border-color: #555; background: #141414; }
-
     #video-container { width: 100%; aspect-ratio: 4/3; background: #000; border-radius: 6px; overflow: hidden; display: none; }
     #webcam-video { width: 100%; height: 100%; object-fit: cover; }
 
-    .input-row { display: flex; gap: 10px; align-items: center; }
+    .input-row, .entry-header { flex-direction: row; gap: 10px; align-items: center; }
+    .entry-header { justify-content: space-between; align-items: flex-start; }
 
-    .btn {
-      flex: 1; padding: 12px; background: #222; color: #fff;
-      border: 1px solid #333; border-radius: 8px; font-size: 14px; font-weight: 500;
-      cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s;
-    }
+    .btn { flex: 1; padding: 12px; background: #222; color: #fff; border: 1px solid #333; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s; }
     .btn:hover { background: #333; border-color: #555; }
     .btn-danger { background: #3c1818; border-color: #552222; color: #ff9999; }
     .btn-danger:hover { background: #552222; border-color: #773333; }
 
     .section-title { font-size: 1.1rem; font-weight: 600; color: #aaa; display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
     .list-container { display: flex; flex-direction: column; gap: 10px; }
-
     .entry { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 6px; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
-    .entry-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
     .entry-code { font-family: monospace; font-size: 15px; word-break: break-all; color: #eee; flex: 1; }
     .entry-meta { font-size: 0.75rem; color: #666; display: flex; align-items: center; gap: 6px; }
     .entry-meta.expired { color: #ff5555; font-weight: bold; }
 
-    .icon-btn {
-      background: none; border: none; color: #aaa; cursor: pointer; padding: 4px 8px; font-size: 1.1rem; transition: color 0.2s;
-    }
-    .icon-btn:hover { color: #fff; }
-
+    .icon-btn { background: none; border: none; color: #aaa; cursor: pointer; padding: 4px 8px; font-size: 1.1rem; transition: color 0.2s; }
     .used-section { opacity: 0.5; }
     .used-section .entry-code { text-decoration: line-through; color: #777; }
     .empty { color: #555; font-size: 0.9rem; text-align: center; padding: 20px; border: 1px dashed #222; border-radius: 6px; font-family: monospace; }
 
-    #toast {
-      position: fixed; bottom: 20px; background: rgba(34, 34, 34, 0.9); color: #fff;
-      border: 1px solid #444; padding: 10px 20px; border-radius: 20px;
-      font-size: 13px; font-weight: 500; backdrop-filter: blur(8px);
-      box-shadow: 0 4px 16px rgba(0,0,0,0.6); opacity: 0; transform: translateY(20px);
-      transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); pointer-events: none; z-index: 1000;
-    }
+    #toast { position: fixed; bottom: 20px; background: rgba(34, 34, 34, 0.9); color: #fff; border: 1px solid #444; padding: 10px 20px; border-radius: 20px; font-size: 13px; font-weight: 500; backdrop-filter: blur(8px); box-shadow: 0 4px 16px rgba(0,0,0,0.6); opacity: 0; transform: translateY(20px); transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); pointer-events: none; z-index: 1000; }
     #toast.show { opacity: 1; transform: translateY(0); }
   </style>
 </head>
@@ -85,7 +52,6 @@
   <header>
     <a href="https://zyg0t.github.io/WebUtils/" class="header-btn" title="WebUtils"><i class="fas fa-shapes"></i></a>
     <h2>McQR</h2>
-    <button class="header-btn" title="Open McDonald's" onclick="openMcDonaldsApp()"><i class="fas fa-mobile-screen-button"></i></button>
   </header>
 
   <main>
@@ -133,23 +99,6 @@
       };
     }
 
-    function openMcDonaldsApp() {
-      const isAndroid = /Android/i.test(navigator.userAgent);
-      const startTime = Date.now();
-
-      if (isAndroid) {
-        window.location.href = "intent://#Intent;scheme=mcdmobileapp;package=com.mcdonalds.mobileapp;end";
-      } else {
-        window.location.href = "mcdmobileapp://";
-      }
-
-      setTimeout(() => {
-        if (Date.now() - startTime < 1500) {
-          toast("App not installed");
-        }
-      }, 1000);
-    }
-
     function toast(msg) {
       const t = $('toast');
       t.textContent = msg;
@@ -174,8 +123,7 @@
       if (!code) return;
 
       if (entries.some(e => e.code.toUpperCase() === code.toUpperCase() && e.status === 'active')) {
-        toast("Code already active");
-        return;
+        return toast("Code already active");
       }
 
       updateEntries([{ id: crypto.randomUUID?.() || Date.now().toString(), code, timestamp: Date.now(), status: 'active' }, ...entries]);
@@ -189,7 +137,7 @@
 
     function shareCode(code) {
       if (navigator.share) {
-        navigator.share({ title: 'McQR Code', text: code }).catch(() => {});
+        navigator.share({ title: 'McQR', text: code }).catch(() => {});
       } else {
         navigator.clipboard.writeText(code);
         toast("Copied to clipboard");
@@ -205,11 +153,11 @@
     }
 
     function renderLists() {
-      const activeEntries = entries.filter(e => e.status === 'active');
-      const usedEntries = entries.filter(e => e.status === 'used');
+      const active = entries.filter(e => e.status === 'active');
+      const used = entries.filter(e => e.status === 'used');
 
-      $('active-title').innerHTML = `<i class="fas fa-bolt"></i> Active Codes (${activeEntries.length})`;
-      $('history-title').innerHTML = `<i class="fas fa-history"></i> History (${usedEntries.length})`;
+      $('active-title').innerHTML = `<i class="fas fa-bolt"></i> Active Codes (${active.length})`;
+      $('history-title').innerHTML = `<i class="fas fa-history"></i> History (${used.length})`;
 
       const render = (items, isActive) => items.length ? items.map(e => {
         const isExpired = (Date.now() - e.timestamp) > SEVEN_DAYS;
@@ -219,14 +167,9 @@
               <div class="entry-code">${e.code}</div>
               ${!isActive ? `
                 <div style="display: flex; gap: 4px;">
-                  <button class="icon-btn" title="Restore" onclick="move('${e.id}', 'active'); toast('Restored');">
-                    <i class="fas fa-undo"></i>
-                  </button>
-                  <button class="icon-btn" title="Delete" style="color: #ff5555;" onclick="updateEntries(entries.filter(x => x.id !== '${e.id}')); toast('Deleted');">
-                    <i class="far fa-trash-can"></i>
-                  </button>
-                </div>
-              ` : ''}
+                  <button class="icon-btn" title="Restore" onclick="move('${e.id}', 'active'); toast('Restored');"><i class="fas fa-undo"></i></button>
+                  <button class="icon-btn" title="Delete" style="color: #ff5555;" onclick="updateEntries(entries.filter(x => x.id !== '${e.id}')); toast('Deleted');"><i class="far fa-trash-can"></i></button>
+                </div>` : ''}
             </div>
             <div class="entry-meta ${isActive && isExpired ? 'expired' : ''}">
               <i class="far fa-clock"></i> ${formatTime(e.timestamp)} ${isActive && isExpired ? '(Expired)' : ''}
@@ -236,14 +179,12 @@
                 <button class="btn" onclick="navigator.clipboard.writeText('${e.code}'); toast('Copied');"><i class="far fa-copy"></i> Copy</button>
                 <button class="btn" onclick="shareCode('${e.code}')"><i class="fas fa-share-nodes"></i> Share</button>
                 <button class="btn" onclick="move('${e.id}', 'used'); toast('Used');"><i class="fas fa-check"></i> Use</button>
-              </div>
-            ` : ''}
-          </div>
-        `;
+              </div>` : ''}
+          </div>`;
       }).join('') : `<div class="empty">[ Empty ]</div>`;
 
-      $('active-list').innerHTML = render(activeEntries, true);
-      $('used-list').innerHTML = render(usedEntries, false);
+      $('active-list').innerHTML = render(active, true);
+      $('used-list').innerHTML = render(used, false);
     }
 
     window.move = (id, status) => updateEntries(entries.map(e => e.id === id ? { ...e, status } : e));
@@ -254,8 +195,7 @@
         cancelAnimationFrame(animationFrameId);
         videoStream = animationFrameId = null;
         $('video-container').style.display = "none";
-        $('start-cam-btn').innerHTML = '<i class="fas fa-camera"></i> Camera';
-        return;
+        return $('start-cam-btn').innerHTML = '<i class="fas fa-camera"></i> Camera';
       }
       try {
         videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
