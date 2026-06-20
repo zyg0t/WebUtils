@@ -14,9 +14,8 @@
       padding: 20px; min-height: 100vh;
       display: flex; flex-direction: column; align-items: center;
     }
-    header { text-align: center; margin: 20px 0 25px; }
-    h1 { font-size: 2.2rem; font-weight: 700; display: flex; align-items: center; gap: 12px; justify-content: center; }
-    h1 i { color: #888; font-size: 1.8rem; }
+    header { text-align: center; margin: 8px 0 15px; }
+    h2 { font-size: 1.5rem; font-weight: 700; }
 
     main { width: 100%; max-width: 600px; display: flex; flex-direction: column; gap: 20px; }
     .card {
@@ -27,7 +26,7 @@
     .card:hover { border-color: #555; background: #141414; }
 
     #video-container { width: 100%; aspect-ratio: 4/3; background: #000; border-radius: 6px; overflow: hidden; display: none; }
-    webcam-video { width: 100%; height: 100%; object-fit: cover; }
+    #webcam-video { width: 100%; height: 100%; object-fit: cover; }
 
     .input-row { display: flex; gap: 10px; align-items: center; }
 
@@ -47,6 +46,7 @@
     .entry-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
     .entry-code { font-family: monospace; font-size: 15px; word-break: break-all; color: #eee; flex: 1; }
     .entry-meta { font-size: 0.75rem; color: #666; display: flex; align-items: center; gap: 6px; }
+    .entry-meta.expired { color: #ff5555; font-weight: bold; }
 
     .icon-btn {
       background: none; border: none; color: #aaa; cursor: pointer; padding: 4px 8px; font-size: 1.1rem; transition: color 0.2s;
@@ -56,12 +56,21 @@
     .used-section { opacity: 0.5; }
     .used-section .entry-code { text-decoration: line-through; color: #777; }
     .empty { color: #555; font-size: 0.9rem; text-align: center; padding: 20px; border: 1px dashed #222; border-radius: 6px; font-family: monospace; }
+
+    #toast {
+      position: fixed; bottom: 20px; background: rgba(34, 34, 34, 0.9); color: #fff;
+      border: 1px solid #444; padding: 10px 20px; border-radius: 20px;
+      font-size: 13px; font-weight: 500; backdrop-filter: blur(8px);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.6); opacity: 0; transform: translateY(20px);
+      transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); pointer-events: none; z-index: 1000;
+    }
+    #toast.show { opacity: 1; transform: translateY(0); }
   </style>
 </head>
 <body>
 
   <header>
-    <h1><i class="fas fa-qrcode"></i> McQR</h1>
+    <h2>McQR</h2>
   </header>
 
   <main>
@@ -69,17 +78,18 @@
       <div id="video-container"><video id="webcam-video" playsinline></video></div>
       <div class="input-row">
         <button id="start-cam-btn" class="btn"><i class="fas fa-camera"></i> Camera</button>
+        <button id="add-url-btn" class="btn"><i class="fas fa-link"></i> URL</button>
       </div>
     </section>
 
     <section>
-      <div class="section-title"><span><i class="fas fa-bolt"></i> Active Codes</span></div>
+      <div class="section-title"><span id="active-title"><i class="fas fa-bolt"></i> Active Codes (0)</span></div>
       <div id="active-list" class="list-container"></div>
     </section>
 
     <section class="used-section">
       <div class="section-title">
-        <span><i class="fas fa-history"></i> History</span>
+        <span id="history-title"><i class="fas fa-history"></i> History (0)</span>
         <button id="clear-all-used" class="btn btn-danger" style="padding: 6px 12px; font-size: 12px; flex: none;">Clear All</button>
       </div>
       <div id="used-list" class="list-container"></div>
@@ -87,32 +97,71 @@
   </main>
 
   <canvas id="qr-canvas" style="display: none;"></canvas>
+  <div id="toast"></div>
 
   <script>
     let entries = JSON.parse(localStorage.getItem('qr_entries')) || [];
     let videoStream = null, animationFrameId = null;
+    const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
 
     const $ = id => document.getElementById(id);
     const video = $('webcam-video'), canvas = $('qr-canvas'), ctx = canvas.getContext('2d');
 
     function init() {
       renderLists();
-      setInterval(renderLists, 30000);
+      setInterval(renderLists, 15000);
       $('start-cam-btn').onclick = toggleCamera;
-      $('clear-all-used').onclick = () => updateEntries(entries.filter(e => e.status !== 'used'));
+      $('add-url-btn').onclick = promptForUrl;
+      $('clear-all-used').onclick = () => {
+        updateEntries(entries.filter(e => e.status !== 'used'));
+        toast("History cleared");
+      };
+    }
+
+    function toast(msg) {
+      const t = $('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      clearTimeout(t.timer);
+      t.timer = setTimeout(() => t.classList.remove('show'), 2000);
     }
 
     function updateEntries(newEntries) {
-      entries = newEntries;
+      const active = newEntries.filter(e => e.status === 'active');
+      let used = newEntries.filter(e => e.status === 'used');
+      if (used.length > 100) used = used.slice(0, 100);
+      entries = [...active, ...used];
       localStorage.setItem('qr_entries', JSON.stringify(entries));
       renderLists();
     }
 
     function addEntry(text) {
+      if (!text) return;
       const match = text.match(/CODE=([\w-]+)/i);
       const code = match ? match[1] : text.trim();
       if (!code) return;
+
+      if (entries.some(e => e.code.toUpperCase() === code.toUpperCase() && e.status === 'active')) {
+        toast("Code already active");
+        return;
+      }
+
       updateEntries([{ id: crypto.randomUUID?.() || Date.now().toString(), code, timestamp: Date.now(), status: 'active' }, ...entries]);
+      toast("Code added");
+    }
+
+    function promptForUrl() {
+      const input = prompt("Enter URL or code:");
+      if (input) addEntry(input);
+    }
+
+    function shareCode(code) {
+      if (navigator.share) {
+        navigator.share({ title: 'McQR Code', text: code }).catch(() => {});
+      } else {
+        navigator.clipboard.writeText(code);
+        toast("Copied to clipboard");
+      }
     }
 
     function formatTime(ts) {
@@ -124,40 +173,47 @@
     }
 
     function renderLists() {
-      const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
-      let changed = false;
-      entries.forEach(e => { if (e.status === 'active' && Date.now() - e.timestamp > SEVEN_DAYS) { e.status = 'used'; changed = true; } });
-      if (changed) localStorage.setItem('qr_entries', JSON.stringify(entries));
+      const activeEntries = entries.filter(e => e.status === 'active');
+      const usedEntries = entries.filter(e => e.status === 'used');
 
-      const render = (items, isActive) => items.length ? items.map(e => `
-        <div class="entry">
-          <div class="entry-header">
-            <div class="entry-code">${e.code}</div>
-            ${!isActive ? `
-              <button class="icon-btn" title="Restore" onclick="move('${e.id}', 'active')">
-                <i class="fas fa-undo"></i>
-              </button>
+      $('active-title').innerHTML = `<i class="fas fa-bolt"></i> Active Codes (${activeEntries.length})`;
+      $('history-title').innerHTML = `<i class="fas fa-history"></i> History (${usedEntries.length})`;
+
+      const render = (items, isActive) => items.length ? items.map(e => {
+        const isExpired = (Date.now() - e.timestamp) > SEVEN_DAYS;
+        return `
+          <div class="entry">
+            <div class="entry-header">
+              <div class="entry-code">${e.code}</div>
+              ${!isActive ? `
+                <button class="icon-btn" title="Restore" onclick="move('${e.id}', 'active'); toast('Restored');">
+                  <i class="fas fa-undo"></i>
+                </button>
+              ` : ''}
+            </div>
+            <div class="entry-meta ${isActive && isExpired ? 'expired' : ''}">
+              <i class="far fa-clock"></i> ${formatTime(e.timestamp)} ${isActive && isExpired ? '(Expired)' : ''}
+            </div>
+            ${isActive ? `
+              <div class="input-row">
+                <button class="btn" onclick="navigator.clipboard.writeText('${e.code}'); toast('Copied');"><i class="far fa-copy"></i> Copy</button>
+                <button class="btn" onclick="shareCode('${e.code}')"><i class="fas fa-share-nodes"></i> Share</button>
+                <button class="btn" onclick="move('${e.id}', 'used'); toast('Used');"><i class="fas fa-check"></i> Use</button>
+              </div>
             ` : ''}
           </div>
-          <div class="entry-meta"><i class="far fa-clock"></i> ${formatTime(e.timestamp)}</div>
-          ${isActive ? `
-            <div class="input-row">
-              <button class="btn" onclick="navigator.clipboard.writeText('${e.code}')"><i class="far fa-copy"></i> Copy</button>
-              <button class="btn" onclick="move('${e.id}', 'used')"><i class="fas fa-check"></i> Use</button>
-            </div>
-          ` : ''}
-        </div>
-      `).join('') : `<div class="empty">[ Empty ]</div>`;
+        `;
+      }).join('') : `<div class="empty">[ Empty ]</div>`;
 
-      $('active-list').innerHTML = render(entries.filter(e => e.status === 'active'), true);
-      $('used-list').innerHTML = render(entries.filter(e => e.status === 'used'), false);
+      $('active-list').innerHTML = render(activeEntries, true);
+      $('used-list').innerHTML = render(usedEntries, false);
     }
 
     window.move = (id, status) => updateEntries(entries.map(e => e.id === id ? { ...e, status } : e));
 
     async function toggleCamera() {
       if (videoStream) {
-        if (videoStream) videoStream.getTracks().forEach(t => t.stop());
+        videoStream.getTracks().forEach(t => t.stop());
         cancelAnimationFrame(animationFrameId);
         videoStream = animationFrameId = null;
         $('video-container').style.display = "none";
@@ -179,7 +235,7 @@
           if (videoStream) animationFrameId = requestAnimationFrame(tick);
         };
         animationFrameId = requestAnimationFrame(tick);
-      } catch { alert("Camera error."); }
+      } catch { toast("Camera error"); }
     }
 
     init();
