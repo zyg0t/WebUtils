@@ -1,304 +1,238 @@
 <!DOCTYPE html>
-<html lang="ro">
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Parser Bonuri SGR</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body, header, main, .card, .input-row, .entry-header { display: flex; flex-direction: column; }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SGR Multi-Tool</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+  <script src="https://unpkg.com/@zxing/library@0.19.0"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #0a0a0a; color: #eaeaea; font-family: system-ui, sans-serif; padding: 15px; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+    header { width: 100%; max-width: 600px; display: flex; justify-content: space-between; align-items: center; margin: 8px 0 20px; border-bottom: 1px solid #333; padding-bottom: 10px; }
+    h2 { font-size: 1.2rem; font-weight: 600; text-align: center; flex: 1; }
+    .btn-back { display: flex; align-items: center; gap: 6px; color: #aaa; text-decoration: none; font-size: 13px; padding: 6px 12px; border: 1px solid #333; border-radius: 6px; transition: 0.2s; }
+    .btn-back:hover { background: #222; color: #fff; }
+    main { width: 100%; max-width: 600px; display: flex; flex-direction: column; gap: 15px; }
 
-        body {
-            background: #0a0a0a;
-            color: #eaeaea;
-            font-family: system-ui, -apple-system, sans-serif;
-            padding: 20px;
-            align-items: center;
-            min-height: 100vh;
-        }
+    .card { background: #111; border: 1px solid #222; border-radius: 8px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+    .card-title { font-size: 1rem; font-weight: 600; color: #ccc; display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px; border-bottom: 1px solid #222; padding-bottom: 8px; }
+    .title-left { display: flex; align-items: center; gap: 8px; }
+    .update-time { font-size: 11px; color: #555; font-weight: normal; }
 
-        header, main { width: 100%; max-width: 600px; }
+    .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+    button { padding: 10px; background: #1a1a1a; color: #ccc; border: 1px solid #333; border-radius: 6px; font-size: 13px; cursor: pointer; flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; transition: 0.2s; font-weight: 500; }
+    button:hover { background: #2a2a2a; border-color: #555; color: #fff; }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
 
-        header {
-            flex-direction: row;
-            justify-content: space-between;
-            align-items: center;
-            margin: 8px 0 15px;
-        }
+    input { width: 100%; padding: 10px; background: #000; color: #fff; border: 1px solid #333; border-radius: 6px; font-size: 14px; font-family: monospace; text-align: center; }
+    input:focus { border-color: #666; outline: none; }
 
-        h2 { font-size: 1.5rem; font-weight: 700; text-align: center; flex: 1; margin-right: 40px; color: #fff; }
-        main { gap: 20px; }
+    .locator-display { display: flex; align-items: center; justify-content: space-between; background: #000; border: 1px solid #222; border-radius: 6px; padding: 15px; }
+    .locator-name { font-size: 1.1rem; font-weight: bold; color: #fff; }
+    .locator-dist { font-size: 0.85rem; color: #777; }
+    .arrow-container { font-size: 2rem; color: #aaa; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; transition: transform 0.2s ease-out; }
 
-        .header-btn { color: #aaa; padding: 8px; font-size: 1.3rem; text-decoration: none; transition: color 0.2s; }
-        .header-btn:hover { color: #fff; }
+    #log { background: #000; border: 1px solid #222; border-radius: 6px; padding: 10px; font-family: monospace; font-size: 11px; height: 80px; overflow-y: auto; color: #777; }
+    .dl-ops { display: none; }
 
-        .card {
-            background: #111;
-            border: 1px solid #333;
-            border-radius: 8px;
-            padding: 20px;
-            gap: 14px;
-            transition: all 0.2s;
-        }
-        .card:hover { border-color: #555; background: #141414; }
+    #video-container { width: 100%; aspect-ratio: 4/3; background: #000; border-radius: 6px; overflow: hidden; display: none; position: relative; border: 1px solid #333; }
+    #video-preview { width: 100%; height: 100%; object-fit: cover; }
+    .scan-overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 70%; height: 1px; background: rgba(255, 255, 255, 0.4); box-shadow: 0 0 8px #fff; }
 
-        label { font-size: 0.95rem; font-weight: 600; color: #aaa; margin-bottom: -4px; }
+    .voucher-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #222; padding-bottom: 5px; margin-top: 5px; }
+    .voucher-title { font-size: 12px; font-weight: 600; color: #666; text-transform: uppercase; letter-spacing: 1px; }
+    .voucher-total { font-size: 13px; font-weight: bold; color: #ddd; }
 
-        input {
-            width: 100%;
-            padding: 12px;
-            background: #1a1a1a;
-            border: 1px solid #333;
-            border-radius: 8px;
-            color: #fff;
-            font-size: 16px;
-            letter-spacing: 1px;
-            font-family: monospace;
-            transition: border-color 0.2s;
-        }
-        input:focus { border-color: #555; outline: none; }
+    .voucher-list { display: flex; flex-direction: column; gap: 8px; }
+    .voucher { background: #000; border: 1px solid #222; border-radius: 6px; padding: 12px; display: flex; justify-content: space-between; align-items: center; transition: 0.2s; }
+    .voucher:hover { border-color: #444; }
+    .voucher.expired { opacity: 0.5; }
+    .voucher.expired .v-val { text-decoration: line-through; }
+    .v-details { display: flex; flex-direction: column; gap: 3px; }
+    .v-code { font-family: monospace; font-size: 11px; color: #666; }
+    .v-val { font-size: 16px; font-weight: bold; color: #fff; }
+    .v-meta { font-size: 10px; color: #555; display: flex; gap: 6px; align-items: center; }
+    .btn-del { flex: none; width: 32px; height: 32px; border-radius: 4px; background: transparent; border: 1px solid #333; color: #666; padding: 0; }
+    .btn-del:hover { background: #222; color: #fff; border-color: #666; }
 
-        #video-container {
-            width: 100%;
-            aspect-ratio: 4/3;
-            background: #000;
-            border-radius: 6px;
-            overflow: hidden;
-            display: none;
-            position: relative;
-        }
-        #webcam-video { width: 100%; height: 100%; object-fit: cover; }
-
-        .input-row { flex-direction: row; gap: 10px; align-items: center; }
-
-        .btn {
-            flex: 1;
-            padding: 12px;
-            background: #222;
-            color: #fff;
-            border: 1px solid #333;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            transition: all 0.2s;
-        }
-        .btn:hover { background: #333; border-color: #555; }
-
-        .error { color: #ff5555; background: #221111; border: 1px solid #442222; padding: 12px; border-radius: 6px; font-size: 14px; display: none; }
-
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; display: none; }
-        th, td { padding: 12px; border-bottom: 1px solid #222; text-align: left; }
-        th { color: #888; font-weight: 500; font-size: 14px; width: 45%; }
-        td { font-weight: bold; color: #eee; font-family: monospace; font-size: 15px; }
-        .highlight { color: #16a34a; font-size: 1.2rem; }
-
-        #toast {
-            position: fixed;
-            bottom: 20px;
-            background: rgba(34, 34, 34, 0.9);
-            color: #fff;
-            border: 1px solid #444;
-            padding: 10px 20px;
-            border-radius: 20px;
-            font-size: 13px;
-            font-weight: 500;
-            backdrop-filter: blur(8px);
-            box-shadow: 0 4px 16px rgba(0,0,0,0.6);
-            opacity: 0;
-            transform: translateY(20px);
-            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            pointer-events: none;
-            z-index: 1000;
-        }
-        #toast.show { opacity: 1; transform: translateY(0); }
-    </style>
+    #toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(20px); background: #222; color: #fff; border: 1px solid #444; padding: 8px 16px; border-radius: 6px; font-size: 12px; opacity: 0; transition: all 0.3s; pointer-events: none; z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  </style>
 </head>
 <body>
 
   <header>
-    <a href="https://zyg0t.github.io/WebUtils/" class="header-btn" title="WebUtils"><i class="fas fa-shapes"></i></a>
-    <h2>Cititor Cod SGR</h2>
+<a href="https://zyg0t.github.io/WebUtils/" class="header-btn" title="WebUtils"><i class="fas fa-shapes"></i></a>
+    <h2>SGR</h2>>
   </header>
 
   <main>
     <section class="card">
-      <div id="video-container"><video id="webcam-video" playsinline></video></div>
-
-      <div class="input-row">
-        <button id="start-cam-btn" class="btn"><i class="fas fa-camera"></i> Scanează QR</button>
+      <div class="card-title">
+        <div class="title-left"><i class="fas fa-location-arrow"></i> Nearest SGR</div>
       </div>
+      <div class="locator-display" id="locator-display" style="display: none;">
+        <div>
+          <div class="locator-name" id="nearest-name">Scanning...</div>
+          <div class="locator-dist" id="nearest-dist">-- m</div>
+        </div>
+        <div class="arrow-container" id="direction-arrow"><i class="fas fa-arrow-up"></i></div>
+      </div>
+      <button id="startTrackerBtn"><i class="fas fa-satellite-dish"></i> Start Tracking</button>
+    </section>
 
-      <label for="barcodeInput">Introdu cele 28 de cifre:</label>
-      <input type="text" id="barcodeInput" placeholder="Ex: 9800091919062614031802650015" maxlength="28" autocomplete="off">
+    <section class="card">
+      <div class="card-title">
+        <div class="title-left"><i class="fas fa-database"></i> Database Extractor</div>
+        <span class="update-time" id="last-update"></span>
+      </div>
+      <button id="startBtn"><i class="fas fa-cloud-arrow-down"></i> Extract Data</button>
+      <pre id="log">Ready...</pre>
+      <div class="btn-row dl-ops" id="dl">
+        <button onclick="saveData('gpx')">GPX</button>
+        <button onclick="saveData('csv')">CSV</button>
+        <button onclick="saveData('json')">GeoJSON</button>
+      </div>
+    </section>
 
-      <div id="errorMessage" class="error"></div>
-
-      <table id="resultTable">
-        <tr>
-            <th>Valoare Bon:</th>
-            <td id="resAmount" class="highlight">-</td>
-        </tr>
-        <tr>
-            <th>Total Ambalaje:</th>
-            <td id="resItems">-</td>
-        </tr>
-        <tr>
-            <th>Ora Emitere:</th>
-            <td id="resTime">-</td>
-        </tr>
-        <tr>
-            <th>ID Magazin:</th>
-            <td id="resStore">-</td>
-        </tr>
-        <tr>
-            <th>Prefix Sistem:</th>
-            <td id="resPrefix">-</td>
-        </tr>
-        <tr>
-            <th>Cod Securitate:</th>
-            <td id="resSec">-</td>
-        </tr>
-      </table>
+    <section class="card">
+      <div class="card-title">
+        <div class="title-left"><i class="fas fa-barcode"></i> Voucher Wallet</div>
+      </div>
+      <div id="video-container">
+        <video id="video-preview"></video>
+        <div class="scan-overlay"></div>
+      </div>
+      <button id="camBtn" style="margin-bottom: 5px;"><i class="fas fa-camera"></i> Toggle Camera</button>
+      <input type="text" id="barcodeInput" placeholder="28-digit manual entry..." maxlength="28" autocomplete="off">
+      <div class="voucher-header">
+        <span class="voucher-title">Saved</span>
+        <span class="voucher-total" id="voucher-total">0.00 RON</span>
+      </div>
+      <div class="voucher-list" id="voucher-list"></div>
     </section>
   </main>
 
-  <canvas id="qr-canvas" style="display: none;"></canvas>
   <div id="toast"></div>
 
-<script>
-    let videoStream = null;
-    let animationFrameId = null;
+  <script>
+    const PROXY = "https://corsproxy.lmarkyos.workers.dev/?url=";
+    const RAD = 15;
+    let sgrNodes = JSON.parse(localStorage.getItem('sgr_nodes')) || [];
+    let vouchers = JSON.parse(localStorage.getItem('sgr_vouchers')) || [];
 
-    const barcodeInput = document.getElementById('barcodeInput');
-    const errorDiv = document.getElementById('errorMessage');
-    const table = document.getElementById('resultTable');
-    const video = document.getElementById('webcam-video');
-    const canvas = document.getElementById('qr-canvas');
-    const ctx = canvas.getContext('2d');
+    const $ = id => document.getElementById(id);
+    const toast = msg => { const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(t.timer); t.timer = setTimeout(() => t.classList.remove('show'), 2000); };
+    const dist = (la1,lo1,la2,lo2) => { const p = Math.PI/180; return 12742 * Math.asin(Math.sqrt(0.5-Math.cos((la2-la1)*p)/2 + Math.cos(la1*p)*Math.cos(la2*p)*(1-Math.cos((lo2-lo1)*p))/2)); };
+    const calcBearing = (la1,lo1,la2,lo2) => { const r=Math.PI/180, d=(lo2-lo1)*r; return (Math.atan2(Math.sin(d)*Math.cos(la2*r), Math.cos(la1*r)*Math.sin(la2*r)-Math.sin(la1*r)*Math.cos(la2*r)*Math.cos(d))*(180/Math.PI)+360)%360; };
+    const getFreshPos = () => new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { enableHighAccuracy: true }));
 
-    // UI Toast setup
-    function toast(msg) {
-        const t = document.getElementById('toast');
-        t.textContent = msg;
-        t.classList.add('show');
-        clearTimeout(t.timer);
-        t.timer = setTimeout(() => t.classList.remove('show'), 2000);
+    const log = m => { const el = $('log'); el.textContent += `> ${m}\n`; el.scrollTop = el.scrollHeight; };
+
+    if(sgrNodes.length > 0) {
+      $('dl').style.display = 'flex';
+      const savedTime = localStorage.getItem('sgr_nodes_updated');
+      if(savedTime) $('last-update').textContent = `Updated: ${savedTime}`;
     }
 
-    // Main Parser Logic
-    barcodeInput.addEventListener('input', function(e) {
-        processBarcode(e.target.value.trim());
-    });
+    $('startBtn').onclick = async () => {
+      if (!navigator.geolocation) return toast("Geolocation not supported");
+      $('startBtn').disabled = true; $('dl').style.display = 'none'; $('log').textContent = ''; sgrNodes = [];
 
-    function processBarcode(rawValue) {
-        errorDiv.style.display = 'none';
-        table.style.display = 'none';
+      try {
+        log("Acquiring current position...");
+        const position = await getFreshPos();
+        const uLat = position.coords.latitude;
+        const uLon = position.coords.longitude;
 
-        if (rawValue.length === 0) return;
+        log("Fetching nodes...");
+        const all = await (await fetch(PROXY + encodeURIComponent('https://sgrstatus.ro/wp-json/custom/v1/locations/'))).json();
+        const f = all.filter(l => dist(uLat, uLon, l.latitude, l.longitude) <= RAD);
+        log(`Found ${f.length} nodes within 15km.`);
 
-        if (!/^\d+$/.test(rawValue) || rawValue.length !== 28) {
-            errorDiv.textContent = "Codul trebuie să conțină exact 28 de cifre digitale.";
-            errorDiv.style.display = 'block';
-            return;
+        for (let [i,l] of f.entries()) {
+          const res = await (await fetch(PROXY + encodeURIComponent(`https://sgrstatus.ro/wp-json/custom/v1/location_info/?lat=${l.latitude}&lon=${l.longitude}`))).json();
+          sgrNodes.push({name: res.name||"Node", status: res.status||"N/A", lat: l.latitude, lon: l.longitude});
+          if(i % 5 === 0) log(`Processed ${i+1}/${f.length}...`);
         }
 
-        // Parse logic
-        const prefix = rawValue.substring(0, 2);
-        const storeId = rawValue.substring(2, 10);
-        const hourMinute = rawValue.substring(14, 18);
-        const seconds = rawValue.substring(18, 20);
-        const rawAmount = rawValue.substring(20, 24);
-        const checksum = rawValue.substring(24, 28);
+        const nowStr = new Date().toLocaleString('en-GB', { hour12: false });
+        localStorage.setItem('sgr_nodes', JSON.stringify(sgrNodes));
+        localStorage.setItem('sgr_nodes_updated', nowStr);
 
-        const amountRon = (parseInt(rawAmount, 10) / 10).toFixed(2);
-        const totalItems = Math.floor(parseFloat(amountRon) / 0.50);
-        const formattedTime = `${hourMinute.substring(0, 2)}:${hourMinute.substring(2, 4)}:${seconds}`;
+        $('last-update').textContent = `Updated: ${nowStr}`;
+        $('dl').style.display = 'flex'; log("Done.");
+      } catch(e) {
+        log("Error: " + (e.message || "Failed to get location"));
+        if(localStorage.getItem('sgr_nodes')) $('dl').style.display = 'flex';
+      } finally {
+        $('startBtn').disabled = false;
+      }
+    };
 
-        // Assign UI text
-        document.getElementById('resPrefix').textContent = prefix;
-        document.getElementById('resStore').textContent = storeId;
-        document.getElementById('resTime').textContent = formattedTime;
-        document.getElementById('resAmount').textContent = `${amountRon} RON`;
-        document.getElementById('resItems').textContent = `${totalItems} bucăți`;
-        document.getElementById('resSec').textContent = checksum;
+    window.saveData = t => {
+      let c, m, f = `sgr.${t}`;
+      if (t==='gpx') { m = 'application/gpx+xml'; c = `<?xml version="1.1"?><gpx>${sgrNodes.map(l=>`<wpt lat="${l.lat}" lon="${l.lon}"><name>${l.name}</name></wpt>`).join('')}</gpx>`; }
+      else if (t==='csv') { m = 'text/csv'; c = "Name,Status,Lat,Lon\n" + sgrNodes.map(l=>`"${l.name}","${l.status}",${l.lat},${l.lon}`).join('\n'); }
+      else { m = 'application/json'; c = JSON.stringify({type:"FeatureCollection", features:sgrNodes.map(l=>({type:"Feature", geometry:{type:"Point", coordinates:[l.lon,l.lat]}, properties:{name:l.name,status:l.status}}))}); }
+      const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([c],{type:m})); a.download = f; a.click();
+    };
 
-        table.style.display = 'table';
-    }
+    let userPos = null, curHeading = 0;
+    const updateLoc = () => {
+      if (!userPos || !sgrNodes.length) return;
+      let near = null, minD = Infinity;
+      sgrNodes.forEach(n => { const d = dist(userPos.lat, userPos.lon, n.lat, n.lon); if (d < minD) { minD = d; near = n; } });
+      if (near) {
+        $('nearest-name').textContent = near.name;
+        $('nearest-dist').textContent = minD < 1 ? `${Math.round(minD * 1000)}m` : `${minD.toFixed(2)}km`;
+        $('direction-arrow').style.transform = `rotate(${calcBearing(userPos.lat, userPos.lon, near.lat, near.lon) - curHeading}deg)`;
+      }
+    };
 
-    // Camera control logic
-    document.getElementById('start-cam-btn').onclick = toggleCamera;
+    $('startTrackerBtn').onclick = async () => {
+      $('startTrackerBtn').style.display = 'none'; $('locator-display').style.display = 'flex';
+      const handleOri = e => { curHeading = e.webkitCompassHeading || (360 - e.alpha); updateLoc(); };
+      if (typeof DeviceOrientationEvent!=='undefined' && typeof DeviceOrientationEvent.requestPermission==='function') {
+        try { if(await DeviceOrientationEvent.requestPermission() === 'granted') window.addEventListener('deviceorientation', handleOri); } catch(e){}
+      } else window.addEventListener('deviceorientationabsolute', handleOri);
+      if (navigator.geolocation) navigator.geolocation.watchPosition(p => { userPos = { lat: p.coords.latitude, lon: p.coords.longitude }; updateLoc(); }, e => toast("Location err"), {enableHighAccuracy: true});
+    };
 
-    async function toggleCamera() {
-        if (videoStream) {
-            stopCamera();
-            return;
-        }
+    let codeReader = null, isCamOpen = false;
+    const processBarcode = val => {
+      if (!/^\d{28}$/.test(val)) return toast("Invalid 28-digit format");
+      const amt = (parseInt(val.substring(20, 24), 10) / 10).toFixed(2), hm = val.substring(14, 18);
+      vouchers.unshift({ id: Date.now().toString(), code: val, store: val.substring(2, 10), amount: amt, items: Math.floor(amt / 0.5), time: `${hm.substring(0,2)}:${hm.substring(2,4)}:${val.substring(18,20)}`, ts: Date.now() });
+      localStorage.setItem('sgr_vouchers', JSON.stringify(vouchers)); renderVouchers(); toast("Saved");
+    };
 
+    $('barcodeInput').oninput = e => { if (e.target.value.trim().length === 28) { processBarcode(e.target.value.trim()); e.target.value = ''; } };
+
+    $('camBtn').onclick = async () => {
+      if (!codeReader) codeReader = new ZXing.BrowserMultiFormatReader();
+      if (isCamOpen) { codeReader.reset(); $('video-container').style.display='none'; $('camBtn').innerHTML='<i class="fas fa-camera"></i> Toggle Camera'; isCamOpen=false; }
+      else {
         try {
-            // Enhanced constraints for reliability across mobile viewports
-            videoStream = await navigator.mediaDevices.getUserMedia({
-                video: {
-                    facingMode: "environment",
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 }
-                }
-            });
+          $('video-container').style.display='block'; $('camBtn').innerHTML='<i class="fas fa-stop"></i> Stop Camera'; isCamOpen=true;
+          codeReader.decodeFromVideoDevice(null, 'video-preview', (res, err) => {
+            if (res) { processBarcode(res.text); codeReader.reset(); $('video-container').style.display='none'; $('camBtn').innerHTML='<i class="fas fa-camera"></i> Toggle Camera'; isCamOpen=false; }
+          });
+        } catch(e) { toast("Camera init failed"); }
+      }
+    };
 
-            video.srcObject = videoStream;
-            video.setAttribute("playsinline", true); // Crucial for iOS Safari embed
-            video.play();
+    const renderVouchers = () => {
+      $('voucher-total').textContent = `${vouchers.reduce((s, v) => s + parseFloat(v.amount), 0).toFixed(2)} RON`;
+      $('voucher-list').innerHTML = vouchers.length ? vouchers.map(v => {
+        const exp = (Date.now() - v.ts) > 31536000000;
+        return `<div class="voucher ${exp?'expired':''}"><div class="v-details"><div class="v-val">${v.amount} RON <span style="font-size:11px;color:#777;font-weight:normal;">(${v.items} items)</span></div><div class="v-code">${v.store} | ${v.time}</div><div class="v-meta"><i class="far fa-calendar-alt"></i> ${new Date(v.ts).toLocaleDateString('en-GB')} ${exp?'(EXP)':''}</div></div><button class="btn-del" onclick="delV('${v.id}')"><i class="fas fa-times"></i></button></div>`;
+      }).join('') : '<div style="color:#555;font-size:12px;text-align:center;">No vouchers</div>';
+    };
 
-            document.getElementById('video-container').style.display = "block";
-            document.getElementById('start-cam-btn').innerHTML = '<i class="fas fa-stop"></i> Oprește Camera';
-
-            const tick = () => {
-                if (video.readyState === video.HAVE_ENOUGH_DATA) {
-                    canvas.height = video.videoHeight;
-                    canvas.width = video.videoWidth;
-                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-                    const code = jsQR(ctx.getImageData(0, 0, canvas.width, canvas.height).data, canvas.width, canvas.height, { inversionAttempts: "dontInvert" });
-
-                    if (code) {
-                        // If it's an SGR link, clean it to extract the data string
-                        let qrData = code.data.trim();
-                        const match = qrData.match(/CODE=([\w-]+)/i);
-                        if (match) qrData = match[1];
-
-                        barcodeInput.value = qrData;
-                        processBarcode(qrData);
-                        toast("Cod detectat cu succes!");
-                        stopCamera();
-                        return;
-                    }
-                }
-                if (videoStream) animationFrameId = requestAnimationFrame(tick);
-            };
-            animationFrameId = requestAnimationFrame(tick);
-        } catch (err) {
-            console.error(err);
-            toast("Eroare Cameră: Asigură-te că folosești HTTPS!");
-        }
-    }
-
-    function stopCamera() {
-        if (videoStream) {
-            videoStream.getTracks().forEach(t => t.stop());
-        }
-        cancelAnimationFrame(animationFrameId);
-        videoStream = null;
-        animationFrameId = null;
-        document.getElementById('video-container').style.display = "none";
-        document.getElementById('start-cam-btn').innerHTML = '<i class="fas fa-camera"></i> Scanează QR';
-    }
-</script>
-
+    window.delV = id => { vouchers = vouchers.filter(v => v.id !== id); localStorage.setItem('sgr_vouchers', JSON.stringify(vouchers)); renderVouchers(); };
+    renderVouchers();
+  </script>
 </body>
 </html>
