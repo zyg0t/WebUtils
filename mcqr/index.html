@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>McQR</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #0a0a0a; color: #eaeaea;
+      font-family: system-ui, -apple-system, sans-serif;
+      padding: 20px; min-height: 100vh;
+      display: flex; flex-direction: column; align-items: center;
+    }
+    header { text-align: center; margin: 20px 0 25px; }
+    h1 { font-size: 2.2rem; font-weight: 700; display: flex; align-items: center; gap: 12px; justify-content: center; }
+    h1 i { color: #888; font-size: 1.8rem; }
+
+    main { width: 100%; max-width: 600px; display: flex; flex-direction: column; gap: 20px; }
+    .card {
+      background: #111; border: 1px solid #333; border-radius: 8px;
+      padding: 20px; display: flex; flex-direction: column; gap: 14px;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .card:hover { border-color: #555; background: #141414; }
+
+    #video-container { width: 100%; aspect-ratio: 4/3; background: #000; border-radius: 6px; overflow: hidden; display: none; }
+    #webcam-video { width: 100%; height: 100%; object-fit: cover; }
+
+    .input-row { display: flex; gap: 10px; align-items: center; }
+    input[type="file"] { display: none; }
+
+    .btn {
+      flex: 1; padding: 12px; background: #222; color: #fff;
+      border: 1px solid #333; border-radius: 8px; font-size: 14px; font-weight: 500;
+      cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s;
+    }
+    .btn:hover { background: #333; border-color: #555; }
+    .btn-danger { background: #3c1818; border-color: #552222; color: #ff9999; }
+    .btn-danger:hover { background: #552222; border-color: #773333; }
+
+    .section-title { font-size: 1.1rem; font-weight: 600; color: #aaa; display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+    .list-container { display: flex; flex-direction: column; gap: 10px; }
+
+    .entry { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 6px; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+    .entry-code { font-family: monospace; font-size: 15px; word-break: break-all; color: #eee; }
+    .entry-meta { font-size: 0.75rem; color: #666; display: flex; align-items: center; gap: 6px; }
+
+    .used-section { opacity: 0.5; }
+    .used-section .entry-code { text-decoration: line-through; color: #777; }
+    .empty { color: #555; font-size: 0.9rem; text-align: center; padding: 20px; border: 1px dashed #222; border-radius: 6px; font-family: monospace; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1><i class="fas fa-qrcode"></i> McQR</h1>
+  </header>
+
+  <main>
+    <section class="card">
+      <div id="video-container"><video id="webcam-video" playsinline></video></div>
+      <div class="input-row">
+        <button id="start-cam-btn" class="btn"><i class="fas fa-camera"></i> Camera</button>
+        <label class="btn" for="file-input"><i class="fas fa-upload"></i> Upload</label>
+        <input type="file" id="file-input" accept="image/*">
+      </div>
+    </section>
+
+    <section>
+      <div class="section-title"><span><i class="fas fa-bolt"></i> Active Codes</span></div>
+      <div id="active-list" class="list-container"></div>
+    </section>
+
+    <section class="used-section">
+      <div class="section-title">
+        <span><i class="fas fa-history"></i> History</span>
+        <button id="clear-all-used" class="btn btn-danger" style="padding: 6px 12px; font-size: 12px; flex: none;">Clear All</button>
+      </div>
+      <div id="used-list" class="list-container"></div>
+    </section>
+  </main>
+
+  <canvas id="qr-canvas" style="display: none;"></canvas>
+
+  <script>
+    let entries = JSON.parse(localStorage.getItem('qr_entries')) || [];
+    let videoStream = null, animationFrameId = null;
+
+    const $ = id => document.getElementById(id);
+    const video = $('webcam-video'), canvas = $('qr-canvas'), ctx = canvas.getContext('2d');
+
+    function init() {
+      renderLists();
+      setInterval(renderLists, 30000);
+      $('start-cam-btn').onclick = toggleCamera;
+      $('file-input').onchange = handleFileSelect;
+      $('clear-all-used').onclick = () => confirm("Clear history?") && updateEntries(entries.filter(e => e.status !== 'used'));
+    }
+
+    function updateEntries(newEntries) {
+      entries = newEntries;
+      localStorage.setItem('qr_entries', JSON.stringify(entries));
+      renderLists();
+    }
+
+    function addEntry(text) {
+      const match = text.match(/CODE=([\w-]+)/i);
+      const code = match ? match[1] : text.trim();
+      if (!code) return;
+      updateEntries([{ id: crypto.randomUUID?.() || Date.now().toString(), code, timestamp: Date.now(), status: 'active' }, ...entries]);
+    }
+
+    function formatTime(ts) {
+      const diff = Math.floor((Date.now() - ts) / 60000);
+      if (diff < 1) return "just now";
+      if (diff < 60) return `${diff}m ago`;
+      if (diff < 1440) return `${Math.floor(diff/60)}h ago`;
+      return `${Math.floor(diff/1440)}d ago`;
+    }
+
+    function renderLists() {
+      const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
+      let changed = false;
+      entries.forEach(e => { if (e.status === 'active' && Date.now() - e.timestamp > SEVEN_DAYS) { e.status = 'used'; changed = true; } });
+      if (changed) localStorage.setItem('qr_entries', JSON.stringify(entries));
+
+      const render = (items, isActive) => items.length ? items.map(e => `
+        <div class="entry">
+          <div class="entry-code">${e.code}</div>
+          <div class="entry-meta"><i class="far fa-clock"></i> ${formatTime(e.timestamp)}</div>
+          <div class="input-row">
+            <button class="btn" onclick="navigator.clipboard.writeText('${e.code}').then(() => alert('Copied!'))"><i class="far fa-copy"></i> Copy</button>
+            ${isActive ? `
+              <button class="btn" onclick="confirm('Mark used?') && move('${e.id}', 'used')"><i class="fas fa-check"></i> Use</button>
+              <button class="btn" onclick="move('${e.id}', 'used')"><i class="fas fa-arrow-down"></i> Move</button>
+            ` : `
+              <button class="btn" onclick="move('${e.id}', 'active')"><i class="fas fa-undo"></i> Restore</button>
+              <button class="btn btn-danger" onclick="confirm('Delete?') && updateEntries(entries.filter(x => x.id !== '${e.id}'))"><i class="far fa-trash-can"></i></button>
+            `}
+          </div>
+        </div>
+      `).join('') : `<div class="empty">[ Empty ]</div>`;
+
+      $('active-list').innerHTML = render(entries.filter(e => e.status === 'active'), true);
+      $('used-list').innerHTML = render(entries.filter(e => e.status === 'used'), false);
+    }
+
+    window.move = (id, status) => updateEntries(entries.map(e => e.id === id ? { ...e, status } : e));
+
+    async function toggleCamera() {
+      if (videoStream) {
+        if (videoStream) videoStream.getTracks().forEach(t => t.stop());
+        cancelAnimationFrame(animationFrameId);
+        videoStream = animationFrameId = null;
+        $('video-container').style.display = "none";
+        $('start-cam-btn').innerHTML = '<i class="fas fa-camera"></i> Scan Camera';
+        return;
+      }
+      try {
+        videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+        video.srcObject = videoStream; video.play();
+        $('video-container').style.display = "block";
+        $('start-cam-btn').innerHTML = '<i class="fas fa-stop"></i> Stop Camera';
+        const tick = () => {
+          if (video.readyState === video.HAVE_ENOUGH_DATA) {
+            canvas.height = video.videoHeight; canvas.width = video.videoWidth;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const code = jsQR(ctx.getImageData(0, 0, canvas.width, canvas.height).data, canvas.width, canvas.height, { inversionAttempts: "dontInvert" });
+            if (code) { addEntry(code.data); toggleCamera(); return; }
+          }
+          if (videoStream) animationFrameId = requestAnimationFrame(tick);
+        };
+        animationFrameId = requestAnimationFrame(tick);
+      } catch { alert("Camera error."); }
+    }
+
+    function handleFileSelect(e) {
+      const file = e.target.files[0]; if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        const img = new Image();
+        img.onload = () => {
+          canvas.width = img.width; canvas.height = img.height;
+          ctx.drawImage(img, 0, 0);
+          const code = jsQR(ctx.getImageData(0, 0, canvas.width, canvas.height).data, canvas.width, canvas.height);
+          code ? addEntry(code.data) : alert("No QR found.");
+        };
+        img.src = evt.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    init();
+  </script>
+</body>
+</html>
