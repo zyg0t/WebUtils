@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>QuickSGR</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
-  <script src="https://unpkg.com/@zxing/library@0.20.0/umd/index.min.js"></script>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
     body{background:#0a0a0a;color:#eaeaea;font-family:system-ui,sans-serif;padding:15px;display:flex;flex-direction:column;align-items:center;min-height:100vh}
@@ -20,23 +19,27 @@
     button{padding:12px 18px;background:#222;color:#fff;border:none;border-radius:8px;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:500;transition:background .2s}
     button:hover{background:#333}
     button:disabled{opacity:.5;cursor:not-allowed}
-    input{width:100%;padding:12px 16px;background:#1a1a1a;color:#fff;border:1px solid #333;border-radius:8px;font-size:14px;font-family:monospace;text-align:center}
+    input{width:100%;padding:12px 16px;background:#1a1a1a;color:#fff;border:1px solid #333;border-radius:8px;font-size:16px;text-align:center}
+    input[type=number]{-moz-appearance:textfield}
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
     input:focus{border-color:#555;outline:none}
+    .add-row{display:flex;gap:10px}
+    .add-row input{flex:1}
     .locator-display{display:flex;align-items:center;justify-content:space-between;background:#1a1a1a;border:1px solid #333;border-radius:8px;padding:16px}
     .arrow-container{font-size:2.2rem;color:#aaa;width:60px;height:60px;display:flex;align-items:center;justify-content:center;transition:transform .3s}
     #log{background:#1a1a1a;border:1px solid #333;border-radius:8px;padding:14px;font-family:monospace;font-size:13px;height:110px;overflow-y:auto;color:#aaa;white-space:pre-wrap}
-    #video-container{width:100%;aspect-ratio:4/3;background:#000;border-radius:8px;overflow:hidden;position:relative;border:1px solid #333;display:none}
     .voucher-header{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #222;padding-bottom:8px;margin-top:4px}
     .voucher-title{font-size:13px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.5px}
-    .voucher-total{font-size:15px;font-weight:700;color:#ddd}
+    .voucher-total{font-size:15px;font-weight:700;color:#ddd;display:flex;align-items:center;gap:8px}
     .voucher-list{display:flex;flex-direction:column;gap:10px}
     .voucher{background:#1a1a1a;border:1px solid #333;border-radius:8px;padding:14px;display:flex;justify-content:space-between;align-items:center}
     .voucher:hover{border-color:#555}
-    .voucher.expired{opacity:.6}
     .v-details{display:flex;flex-direction:column;gap:4px}
-    .v-code{font-family:monospace;font-size:12px;color:#777}
-    .v-val{font-size:17px;font-weight:700;color:#fff}
-    .v-meta{font-size:11px;color:#666;display:flex;gap:6px;align-items:center}
+    .v-val{font-size:20px;font-weight:700;color:#fff}
+    .v-meta{font-size:13px;color:#888;display:flex;flex-direction:column;gap:2px}
+    .v-meta .time{transition:color .2s}
+    .v-meta.expired .time{color:#ff4444;font-weight:600}
     .btn-del{width:36px;height:36px;border-radius:6px;background:#222;border:none;color:#aaa}
     .btn-del:hover{background:#333;color:#fff}
     #toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(20px);background:#222;color:#fff;border:1px solid #444;padding:10px 18px;border-radius:8px;font-size:13px;opacity:0;transition:all .3s;pointer-events:none;z-index:1000}
@@ -70,11 +73,17 @@
   </section>
 
     <section class="card">
-    <div class="card-title"><div class="title-left"><i class="fas fa-barcode"></i> Voucher Wallet</div></div>
-    <div id="video-container"><video id="video" playsinline autoplay muted></video></div>
-    <button id="camBtn"><i class="fas fa-camera"></i> Toggle Camera</button>
-    <input type="text" id="barcodeInput" placeholder="28-digit manual entry..." maxlength="28">
-    <div class="voucher-header"><span class="voucher-title">Saved Vouchers</span><span class="voucher-total" id="voucher-total">0.00 RON</span></div>
+    <div class="card-title"><div class="title-left"><i class="fas fa-wallet"></i> Voucher Wallet</div></div>
+
+    <div class="add-row">
+      <input type="text" id="amountInput" placeholder="Enter amount (RON)" inputmode="decimal">
+      <button onclick="addVoucher()"><i class="fas fa-plus"></i> Add</button>
+    </div>
+
+    <div class="voucher-header">
+      <span class="voucher-title">Saved Vouchers</span>
+      <span class="voucher-total" id="voucher-total"><i class="fas fa-shopping-cart"></i> 0.00 RON</span>
+    </div>
     <div class="voucher-list" id="voucher-list"></div>
     </section>
 </main>
@@ -243,47 +252,83 @@ $('startTrackerBtn').onclick = async () => {
     }
 };
 
-let codeReader = null;
-let isScanning = false;
+const formatTimeSince = (ts) => {
+    const now = Date.now();
+    const diffMs = now - ts;
+    const diffMin = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMin / 60);
+    const diffDays = Math.floor(diffHours / 24);
+    const diffMonths = Math.floor(diffDays / 30);
 
-const processBarcode = val => {
-    if (!/^\d{28}$/.test(val)) return toast("Invalid 28-digit format");
-    const amt = (parseInt(val.substring(20, 24), 10) / 10).toFixed(2);
-    const hm = val.substring(14, 18);
+    let text = '';
+    let isExpired = false;
+
+    if (diffMonths >= 12) {
+        text = 'Expired';
+        isExpired = true;
+    } else if (diffMonths > 0) {
+        text = `${diffMonths} month${diffMonths > 1 ? 's' : ''} ago`;
+    } else if (diffDays > 0) {
+        text = `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+    } else if (diffHours > 0) {
+        text = `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+    } else if (diffMin > 0) {
+        text = `${diffMin} minute${diffMin > 1 ? 's' : ''} ago`;
+    } else {
+        text = 'Just now';
+    }
+
+    return { text, isExpired };
+};
+
+const addVoucher = () => {
+    const input = $('amountInput');
+    let amtStr = input.value.trim().replace(',', '.');
+
+    if (!amtStr) {
+        toast("Please enter an amount");
+        return;
+    }
+
+    const amount = parseFloat(amtStr);
+    if (isNaN(amount) || amount <= 0) {
+        toast("Invalid amount");
+        return;
+    }
+
     vouchers.unshift({
         id: Date.now().toString(),
-        code: val,
-        store: val.substring(2, 10),
-        amount: amt,
-        items: Math.floor(parseFloat(amt) / 0.5),
-        time: `${hm.substring(0, 2)}:${hm.substring(2, 4)}:${val.substring(18, 20)}`,
+        amount: amount.toFixed(2),
         ts: Date.now()
     });
+
     localStorage.setItem('sgr_vouchers', JSON.stringify(vouchers));
     renderVouchers();
-    toast(`Voucher saved • ${amt} RON`);
+    input.value = '';
+    toast(`Added ${amount.toFixed(2)} RON`);
 };
 
 const renderVouchers = () => {
     const total = vouchers.reduce((s, v) => s + parseFloat(v.amount), 0).toFixed(2);
-    $('voucher-total').textContent = `${total} RON`;
+    $('voucher-total').innerHTML = `<i class="fas fa-shopping-cart"></i> ${total} RON`;
+
     $('voucher-list').innerHTML = vouchers.length ? vouchers.map(v => {
-        const expired = (Date.now() - v.ts) > 31536000000;
+        const { text, isExpired } = formatTimeSince(v.ts);
+        const addedDate = new Date(v.ts).toLocaleDateString('en-GB');
         return `
-            <div class="voucher ${expired ? 'expired' : ''}">
+            <div class="voucher">
                 <div class="v-details">
-                    <div class="v-val">${v.amount} RON <span style="font-size:12px;color:#999">(${v.items} items)</span></div>
-                    <div class="v-code">${v.store} | ${v.time}</div>
-                    <div class="v-meta">
-                        <i class="far fa-calendar-alt"></i>
-                        ${new Date(v.ts).toLocaleDateString('en-GB')} ${expired ? '(Expired)' : ''}
+                    <div class="v-val">${v.amount} RON</div>
+                    <div class="v-meta ${isExpired ? 'expired' : ''}">
+                        <span>${addedDate}</span>
+                        <span class="time">${text}</span>
                     </div>
                 </div>
                 <button class="btn-del" onclick="delV('${v.id}')">
                     <i class="fas fa-times"></i>
                 </button>
             </div>`;
-    }).join('') : '<div style="color:#666;font-size:14px;text-align:center;padding:20px 0">No vouchers saved yet</div>';
+    }).join('') : '<div style="color:#666;font-size:14px;text-align:center;padding:40px 0">No vouchers yet.<br>Add one above.</div>';
 };
 
 window.delV = id => {
@@ -292,61 +337,9 @@ window.delV = id => {
     renderVouchers();
 };
 
-$('barcodeInput').oninput = e => {
-    const v = e.target.value.trim();
-    if (v.length === 28) {
-        processBarcode(v);
-        e.target.value = '';
-    }
-};
-
-$('camBtn').onclick = async () => {
-    if (!codeReader) {
-        codeReader = new ZXing.BrowserMultiFormatReader();
-    }
-
-    const video = $('video');
-
-    if (isScanning) {
-        try { codeReader.reset(); } catch(e){}
-        if (video.srcObject) {
-            video.srcObject.getTracks().forEach(track => track.stop());
-        }
-        video.srcObject = null;
-        $('video-container').style.display = 'none';
-        $('camBtn').innerHTML = `<i class="fas fa-camera"></i> Toggle Camera`;
-        isScanning = false;
-        return;
-    }
-
-    $('video-container').style.display = 'block';
-    $('camBtn').innerHTML = `<i class="fas fa-stop"></i> Stop Camera`;
-    isScanning = true;
-
-    try {
-        const devices = await codeReader.listVideoInputDevices();
-        const backCamera = devices.find(d =>
-            d.label.toLowerCase().includes('back') ||
-            d.label.toLowerCase().includes('rear')
-        ) || devices[0];
-
-        await codeReader.decodeFromVideoDevice(
-            backCamera ? backCamera.deviceId : undefined,
-            'video',
-            (result, err) => {
-                if (result) {
-                    const text = result.getText().trim();
-                    if (/^\d{28}$/.test(text)) {
-                        processBarcode(text);
-                    }
-                }
-            }
-        );
-    } catch (e) {
-        toast("Camera error");
-        console.error(e);
-    }
-};
+$('amountInput').addEventListener('keypress', e => {
+    if (e.key === 'Enter') addVoucher();
+});
 
 renderVouchers();
 </script>
