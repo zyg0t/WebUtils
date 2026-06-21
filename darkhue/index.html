@@ -1,86 +1,4 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>DarkHue</title>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
-<style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{background:#0a0a0a;color:#eaeaea;font-family:system-ui,sans-serif;min-height:100vh;padding:15px;display:flex;flex-direction:column;align-items:center}
-header{width:100%;max-width:600px;display:flex;align-items:center;gap:12px;margin:8px 0 20px}
-h2{flex:1;text-align:center;font-size:1.5rem;font-weight:700}
-.header-btn{width:40px;height:40px;display:flex;align-items:center;justify-content:center;color:#aaa;text-decoration:none;font-size:1.3rem;transition:.2s;flex-shrink:0}
-.header-btn:hover{color:#fff}
-
-main{width:100%;max-width:600px;display:flex;flex-direction:column;align-items:center;gap:14px;min-height:calc(100vh - 120px);position:relative}
-
-.upload-row{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap}
-.idle .upload-row{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:100%;max-width:600px;z-index:10}
-
-label,button{padding:14px 24px;background:#1a1a1a;border:1px solid #333;border-radius:10px;color:#fff;font-size:15px;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:.2s}
-label:hover,button:hover{background:#222;border-color:#444}
-button:disabled{opacity:.5;cursor:not-allowed}
-input[type=file]{display:none}
-
-#previewContainer{width:100%;display:flex;justify-content:center;flex:1}
-#previewWrapper{width:100%;display:flex;align-items:center;justify-content:center;overflow:hidden;min-height:220px;position:relative}
-#preview{max-width:100%;height:auto;display:none}
-.spinner{display:none;align-items:center;justify-content:center;gap:10px;color:#888;font-size:15px}
-
-#downloads{display:none;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:10px}
-#downloads button{min-width:120px}
-
-@media(max-width:640px){
-  body{padding:12px}
-  h2{font-size:1.35rem}
-
-  .idle .upload-row{
-    position:static;
-    transform:none;
-    top:auto;
-    left:auto;
-    margin-top:auto;
-    margin-bottom:auto;
-    flex:1;
-    min-height:70vh;
-    align-items:center;
-  }
-
-  #downloads{flex-direction:column;width:100%}
-  #downloads button{width:100%}
-}
-</style>
-</head>
-<body>
-<header>
-<a href="https://zyg0t.github.io/WebUtils/" class="header-btn"><i class="fas fa-shapes"></i></a>
-<h2>DarkHue</h2>
-<div class="header-btn"></div>
-</header>
-
-<main class="idle">
-  <div class="upload-row">
-    <label for="fileInput"><i class="fas fa-upload"></i>Upload Image</label>
-    <input type="file" id="fileInput" accept="image/*">
-  </div>
-
-  <div id="previewContainer">
-    <div id="previewWrapper">
-      <img id="preview" alt="Processed image">
-      <div class="spinner" id="spinner"><i class="fas fa-spinner fa-spin"></i><span>Processing...</span></div>
-    </div>
-  </div>
-
-  <div id="downloads">
-    <button onclick="save('png')"><i class="fas fa-download"></i>PNG</button>
-    <button onclick="save('jpeg')"><i class="fas fa-download"></i>JPEG</button>
-    <button onclick="save('webp')"><i class="fas fa-download"></i>WebP</button>
-  </div>
-</main>
-
-<script>
-const fileInput = document.getElementById('fileInput');
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DarkHue</title><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css"><link rel="icon" type="image/svg+xml" href="favicon.svg"><style>*{box-sizing:border-box;margin:0;padding:0}body{background:#0a0a0a;color:#eaeaea;font-family:system-ui,sans-serif;min-height:100vh;padding:15px;display:flex;flex-direction:column;align-items:center}header{width:100%;max-width:600px;display:flex;align-items:center;gap:12px;margin:8px 0 20px}h2{flex:1;text-align:center;font-size:1.5rem;font-weight:700}.header-btn{width:40px;height:40px;display:flex;align-items:center;justify-content:center;color:#aaa;text-decoration:none;font-size:1.3rem;transition:.2s;flex-shrink:0}.header-btn:hover{color:#fff}main{width:100%;max-width:600px;display:flex;flex-direction:column;align-items:center;gap:14px;min-height:calc(100vh - 120px);position:relative}.upload-row{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap}.idle .upload-row{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:100%;max-width:600px;z-index:10}button,label{padding:14px 24px;background:#1a1a1a;border:1px solid #333;border-radius:10px;color:#fff;font-size:15px;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:.2s}button:hover,label:hover{background:#222;border-color:#444}button:disabled{opacity:.5;cursor:not-allowed}input[type=file]{display:none}#previewContainer{width:100%;display:flex;justify-content:center;flex:1}#previewWrapper{width:100%;display:flex;align-items:center;justify-content:center;overflow:hidden;min-height:220px;position:relative}#preview{max-width:100%;height:auto;display:none}.spinner{display:none;align-items:center;justify-content:center;gap:10px;color:#888;font-size:15px}#downloads{display:none;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:10px}#downloads button{min-width:120px}@media(max-width:640px){body{padding:12px}h2{font-size:1.35rem}.idle .upload-row{position:static;transform:none;top:auto;left:auto;margin-top:auto;margin-bottom:auto;flex:1;min-height:70vh;align-items:center}#downloads{flex-direction:column;width:100%}#downloads button{width:100%}}</style></head><body><header><a href="https://zyg0t.github.io/WebUtils/" class="header-btn"><i class="fas fa-shapes"></i></a><h2>DarkHue</h2><div class="header-btn"></div></header><main class="idle"><div class="upload-row"><label for="fileInput"><i class="fas fa-upload"></i>Upload Image</label><input type="file" id="fileInput" accept="image/*"></div><div id="previewContainer"><div id="previewWrapper"><img id="preview" alt="Processed image"><div class="spinner" id="spinner"><i class="fas fa-spinner fa-spin"></i><span>Processing...</span></div></div></div><div id="downloads"><button onclick='save("png")'><i class="fas fa-download"></i>PNG</button><button onclick='save("jpeg")'><i class="fas fa-download"></i>JPEG</button><button onclick='save("webp")'><i class="fas fa-download"></i>WebP</button></div></main><script>const fileInput = document.getElementById('fileInput');
 const preview = document.getElementById('preview');
 const previewWrapper = document.getElementById('previewWrapper');
 const downloads = document.getElementById('downloads');
@@ -137,7 +55,4 @@ function save(type) {
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 100);
   }, `image/${type}`, type === 'jpeg' ? 0.92 : undefined);
-}
-</script>
-</body>
-</html>
+}</script></body></html>
